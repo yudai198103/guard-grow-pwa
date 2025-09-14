@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0f172a">
+<title>ガード＆グロウ V2★ Mobile</title>
+<style>
+  html,body{margin:0;background:#0f172a;color:#e5e7eb;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic UI","メイリオ","ＭＳ Ｐゴシック",sans-serif}
+  .wrap{max-width:980px;margin:0 auto;padding:16px}
+  h1{font-size:22px;margin:10px 0}
+  section{background:#111827;border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:14px;margin:12px 0}
+  label{font-size:14px}
+  input,select,button,textarea{width:100%;box-sizing:border-box;background:#0b1020;color:#e5e7eb;border:1px solid #374151;border-radius:10px;padding:10px;font-size:16px}
+  button{background:#22d3ee;color:#0b1220;border:none;font-weight:700}
+  .grid{display:grid;gap:10px}
+  @media (min-width:760px){.grid.two{grid-template-columns:1fr 1fr}}
+  .row{display:flex;gap:10px}
+  .row>*{flex:1}
+  .badge{display:inline-block;border-radius:999px;padding:2px 10px;font-size:12px;margin-right:6px}
+  .ok{background:rgba(134,239,172,.15);border:1px solid rgba(134,239,172,.4)}
+  .warn{background:rgba(253,230,138,.12);border:1px solid rgba(253,230,138,.4)}
+  .danger{background:rgba(252,165,165,.12);border:1px solid rgba(252,165,165,.4)}
+  .card{padding:12px;border-radius:12px;margin-top:8px}
+  .c-ok{background:#C6EFCE;color:#0b1220}
+  .c-warn{background:#C6D9F1;color:#0b1220}
+  .c-danger{background:#FFCDD2;color:#0b1220}
+  .c-gray{background:#EEEEEE;color:#0b1220}
+  table{width:100%;border-collapse:collapse;margin-top:8px}
+  th,td{border-bottom:1px solid #1f2937;padding:6px;text-align:right}
+  th:nth-child(1),td:nth-child(1){text-align:left}
+  small{color:#9ca3af}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>ガード＆グロウ V2★ Mobile（PWA / オフライン）</h1>
+  <small>CSV/コピペでOHLC投入 → High20/Close20/ATR14 自動計算 → 追加/半減/全決済を判定（端末にインストール可）</small>
+
+  <section>
+    <h3>1) データ投入（どちらか）</h3>
+    <div class="grid two">
+      <div>
+        <label>CSVアップロード（列名: date,open,high,low,close）</label><br>
+        <input type="file" id="csv" accept=".csv">
+      </div>
+      <div>
+        <label>コピペ（古→新, 5列）</label><br>
+        <textarea id="paste" rows="6" placeholder="YYYY-MM-DD,open,high,low,close"></textarea>
+      </div>
+    </div>
+    <div class="row">
+      <button id="load">読み込み＆計算</button>
+      <button id="clear">リセット</button>
+    </div>
+    <div id="log"></div>
+  </section>
+
+  <section>
+    <h3>2) パラメータ</h3>
+    <div class="grid two">
+      <div>
+        <label>解禁後レバ上限</label><input id="lev_after" type="number" step="0.1" value="7.2"><br>
+        <label>通常 使用率</label>
+        <select id="usage_base"><option>0.95</option><option>0.90</option><option>0.85</option><option>0.80</option></select><br>
+        <label>警戒 使用率</label>
+        <select id="usage_warn"><option>0.95</option><option>0.90</option><option selected>0.85</option><option>0.80</option></select><br>
+        <label>追加間隔（日）</label><input id="add_gap" type="number" value="2">
+      </div>
+      <div>
+        <label>押し閾値</label><input id="pull_th" type="number" step="0.001" value="0.02"><br>
+        <label>ATR追加上限</label><input id="atr_add" type="number" step="0.01" value="0.32"><br>
+        <label>ATR半減</label><input id="atr_half" type="number" step="0.01" value="0.36"><br>
+        <label>ATR全決済</label><input id="atr_exit" type="number" step="0.01" value="0.42"><br>
+        <div class="row">
+          <div><label>±20%警戒</label><input id="w20" type="number" step="0.01" value="0.18"></div>
+          <div><label>±20%強制</label><input id="f20" type="number" step="0.01" value="0.20"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h3>3) 判定</h3>
+    <div class="grid two">
+      <div>
+        <label>取引日</label><input id="tdate" type="date">
+        <label>終値</label><input id="close" type="number" step="0.0001" value="8.50">
+        <label>High20</label><input id="h20" type="number" step="0.0001" value="8.70">
+        <label>Close20</label><input id="c20" type="number" step="0.0001" value="8.30">
+      </div>
+      <div>
+        <label>ATR14</label><input id="atr" type="number" step="0.0001" value="0.25">
+        <label>有効証拠金（円）</label><input id="equity" type="number" step="1000" value="500000">
+        <label>現在保有ロット（万）</label><input id="lots" type="number" value="0">
+        <label>前回追加日</label><input id="lastadd" type="date">
+      </div>
+    </div>
+    <button id="decide">判定する</button>
+    <div id="result"></div>
+  </section>
+
+  <section>
+    <h3>4) 直近データ</h3>
+    <div id="preview"></div>
+  </section>
+</div>
+
+<script>
+let hist = [];
+
+function saveLocal(){ localStorage.setItem("gg_hist", JSON.stringify(hist)); }
+function loadLocal(){ const s = localStorage.getItem("gg_hist"); if(s){ try{ hist = JSON.parse(s)||[] }catch(e){ hist=[] } } }
+
+function parseCSV(text){
+  const lines = text.split(/\r?\n/).filter(x=>x.trim().length>0);
+  if(lines.length===0) return;
+  const header = lines[0].toLowerCase();
+  let start = 0;
+  if(header.includes("date") && header.includes("open")) start = 1;
+  const rows = [];
+  for(let i=start;i<lines.length;i++){
+    const parts = lines[i].split(",").map(x=>x.trim());
+    if(parts.length<5) continue;
+    rows.push(parts.slice(0,5));
+  }
+  hist = rows.map(r=>({date:r[0], open:+r[1], high:+r[2], low:+r[3], close:+r[4]}))
+             .filter(r=>!isNaN(r.open)&&!isNaN(r.high)&&!isNaN(r.low)&&!isNaN(r.close));
+  hist.sort((a,b)=> new Date(a.date)-new Date(b.date));
+  saveLocal();
+  document.getElementById('log').innerText = "CSV: " + hist.length + "行 読み込み";
+  calcAndPreview();
+}
+
+document.getElementById('csv').addEventListener('change', function(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function() { parseCSV(reader.result); };
+  reader.readAsText(file, 'utf-8');
+});
+
+document.getElementById('load').addEventListener('click', function(){
+  const txt = document.getElementById('paste').value.trim();
+  if(!txt){ calcAndPreview(); return; }
+  let rows = [];
+  txt.split(/\r?\n/).forEach(line=>{
+    line=line.trim();
+    if(!line) return;
+    let parts = line.includes(",")? line.split(",") : (line.includes("\t")? line.split("\t"): line.split(/\s+/));
+    if(parts.length<5) return;
+    rows.push(parts.slice(0,5));
+  });
+  hist = rows.map(r=>({date:r[0], open:+r[1], high:+r[2], low:+r[3], close:+r[4]}))
+             .filter(r=>!isNaN(r.open)&&!isNaN(r.high)&&!isNaN(r.low)&&!isNaN(r.close));
+  hist.sort((a,b)=> new Date(a.date)-new Date(b.date));
+  saveLocal();
+  document.getElementById('log').innerText = "Paste: " + hist.length + "行 読み込み";
+  calcAndPreview();
+});
+
+document.getElementById('clear').addEventListener('click', function(){
+  hist = []; saveLocal(); document.getElementById('preview').innerHTML = ""; document.getElementById('log').innerText="";
+});
+
+function calcATR14(arr){
+  const tr = [];
+  for(let i=0;i<arr.length;i++){
+    const prevClose = i>0? arr[i-1].close : arr[i].close;
+    const r1 = arr[i].high - arr[i].low;
+    const r2 = Math.abs(arr[i].high - prevClose);
+    const r3 = Math.abs(arr[i].low - prevClose);
+    tr.push(Math.max(r1,r2,r3));
+  }
+  const atr = Array(arr.length).fill(null);
+  for(let i=13;i<arr.length;i++){
+    let s=0; for(let j=i-13;j<=i;j++) s+=tr[j];
+    atr[i] = s/14.0;
+  }
+  return atr;
+}
+
+function calcAndPreview(){
+  if(hist.length<21){
+    document.getElementById('preview').innerHTML = "<small>少なくとも21行の履歴が必要です。</small>";
+    return;
+  }
+  const atr = calcATR14(hist);
+  const last = hist[hist.length-1];
+  const h20 = Math.max(...hist.slice(-20).map(x=>x.close));
+  const c20 = hist[hist.length-21].close;
+  const atr14 = atr[hist.length-1];
+
+  document.getElementById('close').value = last.close.toFixed(4);
+  document.getElementById('h20').value = h20.toFixed(4);
+  document.getElementById('c20').value = c20.toFixed(4);
+  document.getElementById('atr').value = atr14? atr14.toFixed(4) : 0.25;
+  document.getElementById('tdate').valueAsDate = new Date(last.date);
+
+  let html = "<table><thead><tr><th>date</th><th>open</th><th>high</th><th>low</th><th>close</th></tr></thead><tbody>";
+  hist.slice(-12).forEach(r=>{
+    html += `<tr><td>${r.date}</td><td>${r.open.toFixed(4)}</td><td>${r.high.toFixed(4)}</td><td>${r.low.toFixed(4)}</td><td>${r.close.toFixed(4)}</td></tr>`;
+  });
+  html += "</tbody></table>";
+  document.getElementById('preview').innerHTML = html;
+}
+
+document.getElementById('decide').addEventListener('click', function(){
+  const close = +document.getElementById('close').value;
+  const h20 = +document.getElementById('h20').value;
+  const c20 = +document.getElementById('c20').value;
+  const atr = +document.getElementById('atr').value;
+  const equity = +document.getElementById('equity').value;
+  const lots = +document.getElementById('lots').value;
+  const lastadd = document.getElementById('lastadd').value;
+
+  const lev_after = +document.getElementById('lev_after').value;
+  const usage_base = +document.getElementById('usage_base').value;
+  const usage_warn = +document.getElementById('usage_warn').value;
+  const pull_th = +document.getElementById('pull_th').value;
+  const atr_add = +document.getElementById('atr_add').value;
+  const atr_half = +document.getElementById('atr_half').value;
+  const atr_exit = +document.getElementById('atr_exit').value;
+  const w20 = +document.getElementById('w20').value;
+  const f20 = +document.getElementById('f20').value;
+  const add_gap = +document.getElementById('add_gap').value;
+
+  const pull = (h20>0)? (h20-close)/h20 : 0;
+  const ret20 = (c20>0)? (close/c20-1.0) : 0;
+
+  let stage = "通常";
+  if(Math.abs(ret20) >= f20) stage = "T-2フラット（強制）";
+  else if(Math.abs(ret20) >= w20) stage = "警戒（縮小）";
+
+  const use_rate = (stage==="警戒（縮小）")? usage_warn : (stage==="T-2フラット（強制）"? 0.0 : usage_base);
+  const allow = (close>0 && equity>0)? Math.floor((equity*lev_after*use_rate)/(close*10000)) : 0;
+
+  const today = document.getElementById('tdate').valueAsDate || new Date();
+  let days_since_add = null;
+  if(lastadd){
+    const dt = new Date(lastadd);
+    days_since_add = Math.floor((today - dt)/(1000*3600*24));
+  }
+  const add_gap_ok = (days_since_add===null || days_since_add>=add_gap || lots===0);
+  const pull_ok = (pull >= pull_th);
+  const atr_ok = (atr <= atr_add);
+
+  let decision = "何もしない", add_lots=0, close_lots=0, color="c-gray", note="";
+  if(stage==="T-2フラット（強制）" || atr>atr_exit || Math.abs(ret20)>=f20){
+    decision="全決済"; color="c-danger"; close_lots=lots; note="イベント or ATR超過";
+  }else if(atr>atr_half){
+    decision="半減"; color="c-warn"; close_lots=Math.ceil(lots/2);
+  }else if(pull_ok && atr_ok && lots<allow && add_gap_ok && use_rate>0){
+    decision="追加"; color="c-ok"; add_lots=Math.max(0, allow-lots);
+  }
+
+  document.getElementById('result').innerHTML = `
+    <div class="card ${color}">
+      <strong>判定：${decision}</strong><br>
+      押し率 ${(pull*100).toFixed(2)}% / 20日変動率 ${(ret20*100).toFixed(2)}% / 使用率 ${use_rate.toFixed(2)}<br>
+      許容最大（解禁後） ${allow} 万通貨<br>
+      推奨 追加ロット ${add_lots} 万通貨 / 推奨 決済ロット ${close_lots} 万通貨<br>
+      <small>${note}</small>
+    </div>`;
+});
+
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('./service-worker.js').catch(()=>{});
+  });
+}
+
+loadLocal();
+if(hist.length){ calcAndPreview(); }
+</script>
+</body>
+</html>
