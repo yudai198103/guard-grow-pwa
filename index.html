@@ -187,10 +187,16 @@ function normNum(s){
   const n = Number(s);
   return Number.isFinite(n) ? n : NaN;
 }
+function stripBOM(s){ return s && s.charCodeAt(0)===0xFEFF ? s.slice(1) : s; }
 function parseDateGuess(s){
-  s = toHalfWidth(String(s??'')).trim();
+  s = stripBOM(toHalfWidth(String(s??'')).trim());
   if (!s) return null;
-  if (/^\\d{8}$/.test(s)) { const y=s.slice(0,4), m=s.slice(4,6), d=s.slice(6,8); return new Date(y+'-'+m+'-'+d+'T00:00:00Z'); }
+  if (/^\d{8}$/.test(s)) { const y=s.slice(0,4), m=s.slice(4,6), d=s.slice(6,8); return new Date(`${y}-${m}-${d}T00:00:00Z`); }
+  const m1 = s.match(/^(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})$/);
+  if (m1){ const y=m1[1], m=m1[2].padStart(2,'0'), d=m1[3].padStart(2,'0'); return new Date(`${y}-${m}-${d}T00:00:00Z`); }
+  const d = new Date(s);
+  return isNaN(d) ? null : d;
+}
   const d = new Date(s);
   return isNaN(d) ? null : d;
 }
@@ -203,7 +209,7 @@ function parseRates(text){
   const lines = text.split(/\\r?\\n/).filter(l=>l.trim().length);
   for (let idx=0; idx<lines.length; idx++){
     const raw = lines[idx];
-    if (/^(date|time|open|high|low|close|終値|始値|高値|安値|ohlc)/i.test(raw)) continue;
+    if (/^(date|time|open|high|low|close|終値|始値|高値|安値|日付|ohlc)/i.test(raw)) continue;
     const cols = splitSmart(raw).map(c=>c.trim());
     if (cols.length<4){ bad++; report.push({line:idx+1, raw, ok:false, reason:'列数不足'}); continue; }
     let date=null, open, high, low, close;
