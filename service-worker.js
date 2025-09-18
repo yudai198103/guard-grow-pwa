@@ -1,5 +1,5 @@
 
-const CACHE = 'gg-v2star-pwa-v1';
+const CACHE = 'gg-v2star-pwa-vX';
 const ASSETS = [
   './',
   './index.html',
