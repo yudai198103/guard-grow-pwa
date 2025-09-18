@@ -82,9 +82,10 @@
 
       <div class="card">
         <h2>CSVアップロード（まとめて）</h2>
+        <div id="csvLog" class="small muted" style="margin-top:4px;"></div>
         <input id="csvFile" type="file" accept=".csv,text/csv" />
         <div style="display:flex; gap:8px; align-items:center; margin-top:8px;">
-          <button id="btnCsv">読み込む</button>
+          <button id="btnCsv" onclick="try{readCsvFromInput()}catch(e){logCsvError(e)}">読み込む</button>
           <span id="csvInfo" class="muted"></span>
         </div>
         <p class="muted">ヘッダ・空行・出来高列は自動スキップ。タブ/カンマ/空白の区切りに対応。</p>
@@ -575,6 +576,27 @@ function exportHistory(){
   URL.revokeObjectURL(url);
 }
 
+function logCsv(msg){ const el=document.getElementById('csvLog'); if(el){ el.textContent = msg; } }
+function logCsvError(e){ console.error(e); logCsv('CSVエラー: '+ (e && e.message || e)); try{ alert('CSV読み込みでエラー: '+(e && e.message || e)); }catch(_){} }
+function readCsvFromInput(){
+  const f = document.getElementById('csvFile').files?.[0];
+  if (!f){ document.getElementById('csvInfo').textContent = 'ファイルを選択してください。'; return; }
+  const reader = new FileReader();
+  reader.onerror = ()=> logCsvError('FileReaderエラー');
+  reader.onload = ()=>{
+    try{
+      const text = String(reader.result||'');
+      const parsedObj = parseRates(text);
+      const parsed = parsedObj.rows || [];
+      const res = mergeRows(parsed);
+      compute();
+      document.getElementById('csvInfo').textContent = `取り込み: ${parsed.length}行 / 上書き: ${res.replace} / 重複: ${res.dup} / スキップ: ${parsedObj.bad||0}行`;
+      logCsv('CSV読み込み完了');
+    }catch(e){ logCsvError(e); }
+  };
+  reader.readAsText(f);
+}
+
 // ---------- Events ----------
 document.getElementById('btnPct').addEventListener('click', fillFromPct);
 document.getElementById('btnRange').addEventListener('click', fillRange);
@@ -585,7 +607,7 @@ document.addEventListener('keydown', (e)=>{
   if (e.ctrlKey && e.key === 'Enter'){ e.preventDefault(); quickAdd(); }
   if (e.ctrlKey && e.key.toLowerCase() === 'z'){ e.preventDefault(); undo(); }
   if (e.ctrlKey && e.key.toLowerCase() === 'y'){ e.preventDefault(); redo(); }
-});
+*/ });
 
 async function pasteFromClipboard(){
   try{
@@ -602,7 +624,7 @@ document.getElementById('btnCopyTemplate').addEventListener('click', ()=>{
   navigator.clipboard.writeText(sample).then(()=>{
     document.getElementById('info').textContent = 'テンプレ行をコピーしました。';
   });
-});
+*/ });
 
 document.getElementById('btnParse').addEventListener('click', ()=>{
   const text = document.getElementById('pastebox').value;
@@ -616,9 +638,9 @@ document.getElementById('btnClear').addEventListener('click', ()=>{
   document.getElementById('pastebox').value='';
   document.getElementById('preview').innerHTML='';
   document.getElementById('info').textContent='';
-});
+*/ });
 
-document.getElementById('btnCsv').addEventListener('click', ()=>{
+document.getElementById('btnCsv').addEventListener('click', ()=>{ try{ readCsvFromInput(); }catch(e){ logCsvError(e); } /*
   const f = document.getElementById('csvFile').files?.[0];
   if (!f){ document.getElementById('csvInfo').textContent = 'ファイルを選択してください。'; return; }
   const reader = new FileReader();
@@ -630,7 +652,7 @@ document.getElementById('btnCsv').addEventListener('click', ()=>{
     document.getElementById('csvInfo').textContent = `取り込み: ${parsed.length}行 / 上書き: ${res.replace} / 重複: ${res.dup} / スキップ: ${bad}行`;
   };
   reader.readAsText(f);
-});
+*/ });
 
 document.getElementById('btnRecalc').addEventListener('click', compute);
 ['pLev','pUse','pGap','pPush','pAtrAdd','pAtrHalf','pAtrAll','pShock','pAtrMode','inputEquity','inputLots','inputLastAdd'].forEach(id=>{
@@ -641,14 +663,14 @@ document.getElementById('btnClearInputs').addEventListener('click', ()=>{
   ['inputEquity','inputLots','inputLastAdd'].forEach(id=>{ const el = document.getElementById(id); if (el) el.value = ''; });
   saveParams();
   compute();
-});
+*/ });
 
 document.getElementById('btnExport').addEventListener('click', exportHistory);
 document.getElementById('btnClearHist').addEventListener('click', ()=>{
   if (!confirm('履歴を削除しますか？')) return;
   localStorage.removeItem('gg_history_v2');
   document.getElementById('history').innerHTML = '<div class="muted">履歴はありません。</div>';
-});
+*/ });
 
 // ---------- Init ----------
 (function init(){
